@@ -532,6 +532,7 @@ class Commands(object):
     )
 
     get_public_node.arguments = (
+        (('-c', '--coin'), {'type': str, 'default': 'Bitcoin'}),
         (('-n', '-address'), {'type': str}),
         (('-e', '--curve'), {'type': str}),
         (('-d', '--show-display'), {'action': 'store_true', 'default': False}),
