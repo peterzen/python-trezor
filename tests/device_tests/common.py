@@ -153,3 +153,45 @@ def generate_entropy(strength, internal_entropy, external_entropy):
         raise ValueError("Entropy length mismatch")
 
     return entropy_stripped
+
+
+class DecredTrezorTest(unittest.TestCase):
+    def setUp(self):
+        transport = config.TRANSPORT(*config.TRANSPORT_ARGS, **config.TRANSPORT_KWARGS)
+        if hasattr(config, 'DEBUG_TRANSPORT'):
+            debug_transport = config.DEBUG_TRANSPORT(*config.DEBUG_TRANSPORT_ARGS, **config.DEBUG_TRANSPORT_KWARGS)
+            self.client = TrezorDebugClient(transport)
+            self.client.set_debuglink(debug_transport)
+        else:
+            self.client = TrezorClient(transport)
+        self.client.set_tx_api(tx_api.TxApiBitcoin)
+        # self.client.set_buttonwait(3)
+
+        self.pgpwordlist = "endorse performance frighten butterfat stagnate exodus checkup amulet absurd newsletter solo resistor Athens sensation island sensation sentence breakaway absurd decimal rematch guitarist beeswax savagery kiwi Burlington commence Atlantic scorecard Camelot eightball impartial ratchet"
+
+        self.pin4 = '1234'
+        self.pin6 = '789456'
+        self.pin8 = '45678978'
+
+        self.client.wipe_device()
+
+        print("Setup finished")
+        print("--------------")
+
+    def setup_mnemonic_allallall(self):
+        self.client.load_device_by_decred_wordlist(mnemonic=self.pgpwordlist, pin='', passphrase_protection=False, label='test', language='english')
+
+    def setup_mnemonic_nopin_nopassphrase(self):
+        self.client.load_device_by_decred_wordlist(mnemonic=self.pgpwordlist, pin='', passphrase_protection=False, label='test', language='english')
+
+    def setup_mnemonic_pin_nopassphrase(self):
+        self.client.load_device_by_decred_wordlist(mnemonic=self.pgpwordlist, pin=self.pin4, passphrase_protection=False, label='test', language='english')
+
+    def setup_mnemonic_pin_passphrase(self):
+        self.client.load_device_by_decred_wordlist(mnemonic=self.pgpwordlist, pin=self.pin4, passphrase_protection=True, label='test', language='english')
+
+    def tearDown(self):
+        self.client.close()
+
+    def wipeDevice(self):
+        ret = self.client.wipe_device()

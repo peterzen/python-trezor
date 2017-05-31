@@ -761,6 +761,56 @@ def nem_get_address(connect, address, network, show_display):
     return client.nem_get_address(address_n, network, show_display)
 
 
+@cli.command(help='Get Decred address.')
+@click.option('-n', '--address', required=True, help="BIP-32 path, e.g. m/42'/0'/43'/0/0")
+@click.option('-d', '--show-display', is_flag=True)
+@click.pass_obj
+def decred_get_address(self, args):
+    address_n = self.client.expand_path(args.n)
+    address = self.client.decred_get_address(address_n, args.show_display)
+    return address
+
+
+@cli.command(help='Initialize Decred wallet from PGP word list.')
+@click.option('-m', '--mnemonic')
+@click.option('-p', '--pin', default='')
+@click.option('-r', '--passphrase-protection', is_flag=True)
+@click.option('-l', '--label', default='')
+@click.pass_obj
+def decred_load_device(self, args):
+    if not args.mnemonic:
+        raise CallException(types.Failure_Other, "Please provide mnemonic (PGP word list)")
+
+    pgpwordlist = ' '.join(args.mnemonic)
+    return self.client.load_device_by_decred_wordlist(pgpwordlist, args.pin, args.passphrase_protection, args.label, 'english')
+
+
+@cli.command(help='Sign message with Decred address.')
+@click.option('-n', '--address', required=True, help="BIP-32 path, e.g. m/42'/60'/0'/0/0")
+@click.argument('message')
+@click.pass_obj
+def decred_sign_message(self, args):
+    address_n = self.client.expand_path(args.n)
+    ret = self.client.decred_sign_message(address_n, args.message)
+    output = {
+        'message': args.message,
+        'address': ret.address,
+        'signature': base64.b64encode(ret.signature)
+    }
+    return output
+
+
+@cli.command(help='Verify message with Decred address.')
+@click.option('-c', '--coin', default='Bitcoin')
+@click.argument('address')
+@click.argument('signature')
+@click.argument('message')
+@click.pass_obj
+def decred_verify_message(self, args):
+    signature = base64.b64decode(args.signature)
+    return self.client.decred_verify_message(args.address, signature, args.message)
+
+
 @cli.command(help='Sign (and optionally broadcast) NEM transaction.')
 @click.option('-n', '--address', help='BIP-32 path to signing key')
 @click.option('-f', '--file', type=click.File('r'), default='-', help='Transaction in NIS (RequestPrepareAnnounce) format')

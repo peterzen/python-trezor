@@ -500,6 +500,8 @@ class ProtocolMixin(object):
 
             path.append(x)
 
+        print("expand_path >>>", path)
+
         return path
 
     @expect(proto.PublicKey)
@@ -638,6 +640,25 @@ class ProtocolMixin(object):
         # Convert message to UTF8 NFC (seems to be a bitcoin-qt standard)
         message = normalize_nfc(message).encode("utf-8")
         return self.call(proto.SignMessage(coin_name=coin_name, address_n=n, message=message, script_type=script_type))
+
+    @expect(proto.MessageSignature)
+    def decred_sign_message(self, n, message):
+        n = self._convert_prime(n)
+        # Convert message to UTF8 NFC (seems to be a bitcoin-qt standard)
+        message = normalize_nfc(message).encode("utf-8")
+        return self.call(proto.DecredSignMessage(address_n=n, message=message))
+
+    def decred_verify_message(self, address, signature, message):
+        # Convert message to UTF8 NFC (seems to be a bitcoin-qt standard)
+        message = normalize_nfc(message).encode("utf-8")
+        try:
+            resp = self.call(proto.DecredVerifyMessage(address=address, signature=signature, message=message))
+        except CallException as e:
+            resp = e
+        if isinstance(resp, proto.Success):
+            return True
+        return False
+
 
     @expect(proto.SignedIdentity)
     def sign_identity(self, identity, challenge_hidden, challenge_visual, ecdsa_curve_name=DEFAULT_CURVE):
@@ -1036,7 +1057,12 @@ class ProtocolMixin(object):
 
         external_entropy = self._get_local_entropy()
         log("Computer generated entropy: " + binascii.hexlify(external_entropy).decode())
-        ret = self.call(proto.EntropyAck(entropy=external_entropy))
+
+        # TODO – this condition is an ugly kludge
+        if(coin_name == 'Decred'):
+            ret = self.call(proto.DecredEntropyAck(entropy=external_entropy))
+        else:
+            ret = self.call(proto.EntropyAck(entropy=external_entropy))
         self.init_device()
         return ret
 
@@ -1156,6 +1182,28 @@ class ProtocolMixin(object):
                 raise RuntimeError("Unexpected result %s" % resp)
 
         raise RuntimeError("Unexpected message %s" % resp)
+
+    @session
+    def decred_reset_device(self, display_random, strength, passphrase_protection, pin_protection, label, language):
+        if self.features.initialized:
+            raise Exception("Device is initialized already. Call wipe_device() and try again.")
+
+        # Begin with device reset workflow
+        msg = proto.ResetDevice(display_random=display_random,
+                                strength=strength,
+                                language=language,
+                                passphrase_protection=bool(passphrase_protection),
+                                pin_protection=bool(pin_protection),
+                                label=label)
+
+        resp = self.call(msg)
+        if not isinstance(resp, proto.EntropyRequest):
+            raise Exception("Invalid response, expected EntropyRequest")
+
+        external_entropy = self._get_local_entropy()
+        log("Computer generated entropy: " + binascii.hexlify(external_entropy).decode('ascii'))
+        ret = self.call(proto.DecredEntropyAck(entropy=external_entropy))
+        self.init_device()
 
     @field('message')
     @expect(proto.Success)
